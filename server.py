@@ -1,12 +1,7 @@
-# first of all import the socket library 
 import socket			 
+from random import*
 
-# next create a socket object 
 s = socket.socket()		 
-print("Socket successfully created")
-
-# reserve a port on your computer in our 
-# case it is 12345 but it can be anything 
 port = 12345			
 
 # Next bind to the port 
@@ -14,23 +9,64 @@ port = 12345
 # instead we have inputted an empty string 
 # this makes the server listen to requests 
 # coming from other computers on the network 
-s.bind(('', port))		 
-print ("socket binded to %s" %(port)) 
+s.bind(('', port))	
 
 # put the socket into listening mode 
-s.listen(5)	 
-print("socket is listening")
+s.listen(5)
+c, addr = s.accept()	 
 
-# a forever loop until we interrupt it or 
-# an error occurs 
-while True: 
+def send(msg):
+    c.send(msg.encode())
 
-# Establish connection with client. 
-    c, addr = s.accept()	 
-    print('Got connection from', addr) 
+def receive():
+    return c.recv(1024).decode();
 
-# send a thank you message to the client. 
-    c.send('Thank you for connecting'.encode()) 
+def values(right, guess):
+    almost, exact = 0, 0
+    for i in range(4):
+        for j in range(4):
+            if right[i]==guess[j]:
+                almost+=1
+        if right[i]==guess[i]:
+            exact+=1
+    return almost, exact
 
-# Close the connection with the client 
-    c.close() 
+def game():
+    number = randint(1000, 9999)
+    numberstr = str(number)
+    while True:
+        guess=receive()
+        if (guess == "/exit"):
+            return False
+        if (guess == "/concede"):
+            send("Number was "+str(number)+". Next number was generated and you can try again.")
+            return True
+        elif ((len(guess) > 8) and (guess[0:8] == "/random ")):
+            try:
+                times = int(guess[8:len(guess)])
+                assert(1 <= times <= 10)
+                response = "Starting random queries "+str(times)+" times:"
+                for i in range(times):
+                    guess=str(randint(1000, 9999))
+                    almost, exact = values(numberstr, guess)
+                    response+="\nFor number "+guess+" there are "+str(almost)+" number matches and "+str(exact)+" exact matches."
+                send(response)
+            except:
+                send("Error when applying /random command. Please, try again.")
+        else:
+            try:
+                guess_number = int(guess)
+                assert(1000 <= guess_number <= 9999)
+                almost, exact = values(numberstr, guess)
+                if (exact == 4):
+                    send("Congratulations! Number "+guess+" is correct!\nNext number was generated and you can play again.")
+                    return True
+                send("For number "+guess+" there are "+str(almost)+" number matches and "+str(exact)+" exact matches.") 
+            except:
+                send("Incorrect input. Please, try again.")
+
+send("Number from 1000 to 9999 was generated.")
+while True:
+    if not game():
+        break
+
